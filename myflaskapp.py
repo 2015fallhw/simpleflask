@@ -12,20 +12,28 @@ if 'OPENSHIFT_REPO_DIR' in os.environ.keys():
     # 表示程式在雲端執行
     data_dir = os.environ['OPENSHIFT_DATA_DIR']
     static_dir = os.environ['OPENSHIFT_REPO_DIR']+"/static"
+    download_dir = os.environ['OPENSHIFT_DATA_DIR']+"/downloads"
 else:
     # 表示程式在近端執行
     data_dir = _curdir + "/local_data/"
     static_dir = _curdir + "/static"
+    download_dir = data_dir +"downloads"
 
 # 利用 init.py 啟動, 建立所需的相關檔案
 initobj = init.Init()
-    
-app = Flask(__name__)
+
+# 必須先將 download_dir 設為 static_folder, 然後才可以用於 download 方法中的 app.static_folder 的呼叫
+app = Flask(__name__, static_folder=download_dir)
 
 # 使用 session 必須要設定 secret_key
 # In order to use sessions you have to set a secret key
 # set the secret key.  keep this really secret:
 app.secret_key = 'A0Zr9@8j/3yX R~XHH!jmN]LWX/,?R@T'
+
+
+
+
+
 
 @app.route("/")
 def index():
@@ -151,6 +159,15 @@ def fileuploadform():
   <input type="button" onclick="$('.prova').axuploader('enable')" value="ok" />
   </section></body></html>
   '''
+# setup static directory
+@app.route('/downloads/<path:path>')
+def send_static(path):
+    return send_from_directory('downloads', path)
+@app.route('/downloads/<path:filename>', methods=['GET', 'POST'])
+def download(filename):
+    return send_from_directory(app.static_folder, filename=filename)
+
+
 if __name__ == "__main__":
     app.run()
 
