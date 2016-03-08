@@ -38,7 +38,6 @@
 <v t="amd.20160308181134.8"><vh>optionaction</vh></v>
 <v t="amd.20160308210121.1"><vh>fileaxupload</vh></v>
 <v t="amd.20160308205930.1"><vh>fileuploadform</vh></v>
-<v t="amd.20160308215446.1"><vh>send_static</vh></v>
 <v t="amd.20160308215931.1"><vh>download</vh></v>
 </v>
 </vnodes>
@@ -126,18 +125,20 @@ else:
     # 表示程式在近端執行
     data_dir = _curdir + "/local_data/"
     static_dir = _curdir + "/static"
-    download_dir = data_dir +"downloads"
+    download_dir = _curdir + "/local_data/downloads/"
 
 # 利用 init.py 啟動, 建立所需的相關檔案
 initobj = init.Init()
 
 # 必須先將 download_dir 設為 static_folder, 然後才可以用於 download 方法中的 app.static_folder 的呼叫
-app = Flask(__name__, static_folder=download_dir)
+app = Flask(__name__)
+#app.config['download_dir'] = download_dir
 
 # 使用 session 必須要設定 secret_key
 # In order to use sessions you have to set a secret key
 # set the secret key.  keep this really secret:
 app.secret_key = 'A0Zr9@8j/3yX R~XHH!jmN]LWX/,?R@T'
+
 
 
 
@@ -313,14 +314,11 @@ else:
 
 
 </t>
-<t tx="amd.20160308215446.1"># setup static directory
-@app.route('/downloads/&lt;path:path&gt;')
-def send_static(path):
-    return send_from_directory('downloads', path)
-</t>
 <t tx="amd.20160308215931.1">@app.route('/downloads/&lt;path:filename&gt;', methods=['GET', 'POST'])
 def download(filename):
-    return send_from_directory(app.static_folder, filename=filename)
+    #return send_from_directory(download_dir, filename=filename, as_attachment=True)
+    return send_from_directory(download_dir, filename=filename)
+    
 
 
 </t>
