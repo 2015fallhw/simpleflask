@@ -22,9 +22,13 @@
 <v t="amd.20160308181031.1" a="E"><vh>@clean wsgi.py</vh>
 <v t="amd.20160308181114.1"><vh>wsgi declarations</vh></v>
 </v>
+<v t="amd.20160308213741.1" a="E"><vh>@clean init.py</vh>
+<v t="amd.20160308213813.1" a="E"><vh>class Init</vh>
+<v t="amd.20160308213813.2"><vh>__init__</vh></v>
+</v>
+</v>
 <v t="amd.20160308181042.1" a="E"><vh>@clean myflaskapp.py</vh>
 <v t="amd.20160308181134.1"><vh>myflaskapp declarations</vh></v>
-<v t="amd.20160308210837.1"><vh>__init__</vh></v>
 <v t="amd.20160308181134.2"><vh>index</vh></v>
 <v t="amd.20160308181134.3"><vh>user</vh></v>
 <v t="amd.20160308181134.4"><vh>red</vh></v>
@@ -105,6 +109,8 @@ else:
 from flask import Flask, send_from_directory, request, redirect, render_template, session, make_response
 import random
 import os
+# init.py 為自行建立的起始物件
+import init
 
 # 確定程式檔案所在目錄, 在 Windows 有最後的反斜線
 _curdir = os.path.join(os.getcwd(), os.path.dirname(__file__))
@@ -117,6 +123,9 @@ else:
     # 表示程式在近端執行
     data_dir = _curdir + "/local_data/"
     static_dir = _curdir + "/static"
+
+# 利用 init.py 啟動, 建立所需的相關檔案
+initobj = init.Init()
     
 app = Flask(__name__)
 
@@ -261,46 +270,38 @@ def fileaxupload():
 
     
     </t>
-<t tx="amd.20160308210837.1">def __init__():
-    # 建立必要的目錄
+<t tx="amd.20160308213741.1">@language python
+@tabwidth -4
+import os
+# 確定程式檔案所在目錄, 在 Windows 有最後的反斜線
+_curdir = os.path.join(os.getcwd(), os.path.dirname(__file__))
+# 設定在雲端與近端的資料儲存目錄
+if 'OPENSHIFT_REPO_DIR' in os.environ.keys():
+    # 表示程式在雲端執行
+    data_dir = os.environ['OPENSHIFT_DATA_DIR']
+    static_dir = os.environ['OPENSHIFT_REPO_DIR']+"/static"
+else:
+    # 表示程式在近端執行
+    data_dir = _curdir + "/local_data/"
+    static_dir = _curdir + "/static"
+@others</t>
+<t tx="amd.20160308213813.1">class Init(object):
+    @others
+</t>
+<t tx="amd.20160308213813.2">def __init__(self):
     # hope to create downloads and images directories　
-    if not os.path.isdir(data_dir+"images"):
-        try:
-            os.makedirs(data_dir+"images")
-        except:
-            print("images mkdir error")
     if not os.path.isdir(data_dir+"downloads"):
         try:
             os.makedirs(data_dir+"downloads")
         except:
-            print("downloads mkdir error")
-    if not os.path.isdir(data_dir+"db"):
+            print("mkdir error")
+    if not os.path.isdir(data_dir+"images"):
         try:
-            os.makedirs(data_dir+"db")
+            os.makedirs(data_dir+"images")
         except:
-            print("db mkdir error")
-    # 建立資料庫檔案
-    '''
-    try:
-        conn = sqlite3.connect(data_dir+"db/database.db")
-        cur = conn.cursor()
-        # 建立資料表
-        cur.execute("CREATE TABLE IF NOT EXISTS entries( \
-                id INTEGER PRIMARY KEY AUTOINCREMENT, \
-                name TEXT not null, \
-                category TEXT not null, \
-                knownby TEXT not null, \
-                memo TEXT);")
-        cur.close()
-        conn.close()
-    except:
-        print("can not create db and table")
-    with closing(connect_db()) as db:
-        with app.open_resource('schema.sql' , mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
-    '''
-        
+            print("mkdir error")
+
+
 </t>
 </tnodes>
 </leo_file>
