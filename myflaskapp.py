@@ -1,7 +1,20 @@
 # coding: utf-8
 from flask import Flask, send_from_directory, request, redirect, render_template, session, make_response
 import random
+import os
 
+# 確定程式檔案所在目錄, 在 Windows 有最後的反斜線
+_curdir = os.path.join(os.getcwd(), os.path.dirname(__file__))
+# 設定在雲端與近端的資料儲存目錄
+if 'OPENSHIFT_REPO_DIR' in os.environ.keys():
+    # 表示程式在雲端執行
+    data_dir = os.environ['OPENSHIFT_DATA_DIR']
+    static_dir = os.environ['OPENSHIFT_REPO_DIR']+"/static"
+else:
+    # 表示程式在近端執行
+    data_dir = _curdir + "/local_data/"
+    static_dir = _curdir + "/static"
+    
 app = Flask(__name__)
 
 # 使用 session 必須要設定 secret_key
@@ -9,6 +22,46 @@ app = Flask(__name__)
 # set the secret key.  keep this really secret:
 app.secret_key = 'A0Zr9@8j/3yX R~XHH!jmN]LWX/,?R@T'
 
+def __init__():
+    # 建立必要的目錄
+    # hope to create downloads and images directories　
+    if not os.path.isdir(data_dir+"images"):
+        try:
+            os.makedirs(data_dir+"images")
+        except:
+            print("images mkdir error")
+    if not os.path.isdir(data_dir+"downloads"):
+        try:
+            os.makedirs(data_dir+"downloads")
+        except:
+            print("downloads mkdir error")
+    if not os.path.isdir(data_dir+"db"):
+        try:
+            os.makedirs(data_dir+"db")
+        except:
+            print("db mkdir error")
+    # 建立資料庫檔案
+    '''
+    try:
+        conn = sqlite3.connect(data_dir+"db/database.db")
+        cur = conn.cursor()
+        # 建立資料表
+        cur.execute("CREATE TABLE IF NOT EXISTS entries( \
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                name TEXT not null, \
+                category TEXT not null, \
+                knownby TEXT not null, \
+                memo TEXT);")
+        cur.close()
+        conn.close()
+    except:
+        print("can not create db and table")
+    with closing(connect_db()) as db:
+        with app.open_resource('schema.sql' , mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+    '''
+        
 @app.route("/")
 def index():
     #這是猜數字遊戲的起始表單, 主要在產生答案, 並且將 count 歸零
@@ -20,8 +73,6 @@ def index():
     session['count'] = thecount
 
     return render_template("index.html", answer=theanswer, count=thecount)
-
-
 @app.route('/user/<name>')
 def user(name):
     return render_template("user.html", name=name)
@@ -84,6 +135,57 @@ def optionaction():
     #return render_template('optionaction.html', option_list1=option_list1, option_list2=option_list2)
     
 
+@app.route('/fileaxupload', methods=['POST'])
+# ajax jquery chunked file upload for flask
+def fileaxupload():
+    '''
+    if not session.get('logged_in'):
+        #abort(401)
+        return redirect(url_for('login'))
+    '''
+    # need to consider if the uploaded filename already existed.
+    # right now all existed files will be replaced with the new files
+    filename = request.args.get("ax-file-name")
+    flag = request.args.get("start")
+    if flag == "0":
+        file = open(data_dir+"downloads/"+filename, "wb")
+    else:
+        file = open(data_dir+"downloads/"+filename, "ab")
+    file.write(request.stream.read())
+    file.close()
+    return "files uploaded!"
+
+    
+    
+@app.route('/fileuploadform')
+def fileuploadform():
+    '''
+    if not session.get('logged_in'):
+        #abort(401)
+        return redirect(url_for('login'))
+    '''
+    return "<h1>file upload</h1>"+'''
+  <script src="/static/jquery.js" type="text/javascript"></script>
+  <script src="/static/axuploader.js" type="text/javascript"></script>
+  <script>
+  $(document).ready(function(){
+  $('.prova').axuploader({url:'fileaxupload', allowExt:['jpg','png','gif','7z','pdf','zip','flv','stl','swf'],
+  finish:function(x,files)
+{
+    alert('All files have been uploaded: '+files);
+},
+  enable:true,
+  remotePath:function(){
+  return 'downloads/';
+  }
+  });
+  });
+  </script>
+  <div class="prova"></div>
+  <input type="button" onclick="$('.prova').axuploader('disable')" value="asd" />
+  <input type="button" onclick="$('.prova').axuploader('enable')" value="ok" />
+  </section></body></html>
+  '''
 if __name__ == "__main__":
     app.run()
 

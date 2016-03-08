@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Created by Leo: http://leoeditor.com/leo_toc.html -->
+<?xml-stylesheet ekr_test ?>
 <leo_file xmlns:leo="http://leoeditor.com/namespaces/leo-python-editor/1.1" >
 <leo_header file_format="2" tnodes="0" max_tnode_index="0" clone_windows="0"/>
 <globals body_outline_ratio="0.5" body_secondary_ratio="0.5">
@@ -13,7 +14,7 @@
 <v t="amd.20160308180732.1" a="E"><vh>近端與遠端共用程式碼</vh>
 <v t="amd.20160308182756.1"><vh>程式功能</vh></v>
 </v>
-<v t="amd.20160308180556.1"><vh>@path static</vh>
+<v t="amd.20160308180556.1" a="E"><vh>@path static</vh>
 <v t="amd.20160308181336.1"><vh>@edit axuploader.js </vh></v>
 </v>
 <v t="amd.20160308180605.1"><vh>@path templates</vh></v>
@@ -23,6 +24,7 @@
 </v>
 <v t="amd.20160308181042.1" a="E"><vh>@clean myflaskapp.py</vh>
 <v t="amd.20160308181134.1"><vh>myflaskapp declarations</vh></v>
+<v t="amd.20160308210837.1"><vh>__init__</vh></v>
 <v t="amd.20160308181134.2"><vh>index</vh></v>
 <v t="amd.20160308181134.3"><vh>user</vh></v>
 <v t="amd.20160308181134.4"><vh>red</vh></v>
@@ -30,6 +32,8 @@
 <v t="amd.20160308181134.6"><vh>docheck</vh></v>
 <v t="amd.20160308181134.7"><vh>option</vh></v>
 <v t="amd.20160308181134.8"><vh>optionaction</vh></v>
+<v t="amd.20160308210121.1"><vh>fileaxupload</vh></v>
+<v t="amd.20160308205930.1"><vh>fileuploadform</vh></v>
 </v>
 </vnodes>
 <tnodes>
@@ -67,7 +71,9 @@ Linux 近端執行:
 
 2. OpenShift Python3 應用程式中的 setting 放入 public key, 對應的 private key 放在 .ssh 目錄下的 id_rsa 檔案中
 
-正確啟動用, 連結到 OpenShift Python3 應用程式</t>
+正確啟動用, 連結到 OpenShift Python3 應用程式
+
+http://simpleflask-2014openshift.rhcloud.com/ (採用 2014openshift At Gmail 管理)</t>
 <t tx="amd.20160308181031.1">@language python
 @tabwidth -4
 @others
@@ -98,7 +104,20 @@ else:
 <t tx="amd.20160308181134.1"># coding: utf-8
 from flask import Flask, send_from_directory, request, redirect, render_template, session, make_response
 import random
+import os
 
+# 確定程式檔案所在目錄, 在 Windows 有最後的反斜線
+_curdir = os.path.join(os.getcwd(), os.path.dirname(__file__))
+# 設定在雲端與近端的資料儲存目錄
+if 'OPENSHIFT_REPO_DIR' in os.environ.keys():
+    # 表示程式在雲端執行
+    data_dir = os.environ['OPENSHIFT_DATA_DIR']
+    static_dir = os.environ['OPENSHIFT_REPO_DIR']+"/static"
+else:
+    # 表示程式在近端執行
+    data_dir = _curdir + "/local_data/"
+    static_dir = _curdir + "/static"
+    
 app = Flask(__name__)
 
 # 使用 session 必須要設定 secret_key
@@ -118,8 +137,6 @@ def index():
     session['count'] = thecount
 
     return render_template("index.html", answer=theanswer, count=thecount)
-
-
 </t>
 <t tx="amd.20160308181134.3">@app.route('/user/&lt;name&gt;')
 def user(name):
@@ -192,5 +209,98 @@ def optionaction():
 <t tx="amd.20160308182756.1">根目錄為猜數字遊戲
 
 /option 則為選項示範程式</t>
+<t tx="amd.20160308205930.1">@app.route('/fileuploadform')
+def fileuploadform():
+    '''
+    if not session.get('logged_in'):
+        #abort(401)
+        return redirect(url_for('login'))
+    '''
+    return "&lt;h1&gt;file upload&lt;/h1&gt;"+'''
+  &lt;script src="/static/jquery.js" type="text/javascript"&gt;&lt;/script&gt;
+  &lt;script src="/static/axuploader.js" type="text/javascript"&gt;&lt;/script&gt;
+  &lt;script&gt;
+  $(document).ready(function(){
+  $('.prova').axuploader({url:'fileaxupload', allowExt:['jpg','png','gif','7z','pdf','zip','flv','stl','swf'],
+  finish:function(x,files)
+{
+    alert('All files have been uploaded: '+files);
+},
+  enable:true,
+  remotePath:function(){
+  return 'downloads/';
+  }
+  });
+  });
+  &lt;/script&gt;
+  &lt;div class="prova"&gt;&lt;/div&gt;
+  &lt;input type="button" onclick="$('.prova').axuploader('disable')" value="asd" /&gt;
+  &lt;input type="button" onclick="$('.prova').axuploader('enable')" value="ok" /&gt;
+  &lt;/section&gt;&lt;/body&gt;&lt;/html&gt;
+  '''
+</t>
+<t tx="amd.20160308210121.1">@app.route('/fileaxupload', methods=['POST'])
+# ajax jquery chunked file upload for flask
+def fileaxupload():
+    '''
+    if not session.get('logged_in'):
+        #abort(401)
+        return redirect(url_for('login'))
+    '''
+    # need to consider if the uploaded filename already existed.
+    # right now all existed files will be replaced with the new files
+    filename = request.args.get("ax-file-name")
+    flag = request.args.get("start")
+    if flag == "0":
+        file = open(data_dir+"downloads/"+filename, "wb")
+    else:
+        file = open(data_dir+"downloads/"+filename, "ab")
+    file.write(request.stream.read())
+    file.close()
+    return "files uploaded!"
+
+    
+    </t>
+<t tx="amd.20160308210837.1">def __init__():
+    # 建立必要的目錄
+    # hope to create downloads and images directories　
+    if not os.path.isdir(data_dir+"images"):
+        try:
+            os.makedirs(data_dir+"images")
+        except:
+            print("images mkdir error")
+    if not os.path.isdir(data_dir+"downloads"):
+        try:
+            os.makedirs(data_dir+"downloads")
+        except:
+            print("downloads mkdir error")
+    if not os.path.isdir(data_dir+"db"):
+        try:
+            os.makedirs(data_dir+"db")
+        except:
+            print("db mkdir error")
+    # 建立資料庫檔案
+    '''
+    try:
+        conn = sqlite3.connect(data_dir+"db/database.db")
+        cur = conn.cursor()
+        # 建立資料表
+        cur.execute("CREATE TABLE IF NOT EXISTS entries( \
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                name TEXT not null, \
+                category TEXT not null, \
+                knownby TEXT not null, \
+                memo TEXT);")
+        cur.close()
+        conn.close()
+    except:
+        print("can not create db and table")
+    with closing(connect_db()) as db:
+        with app.open_resource('schema.sql' , mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+    '''
+        
+</t>
 </tnodes>
 </leo_file>
