@@ -17,7 +17,6 @@
 <v t="amd.20160308180556.1" a="E"><vh>@path static</vh>
 <v t="amd.20160308181336.1"><vh>@edit axuploader.js </vh></v>
 </v>
-<v t="amd.20160308180605.1"><vh>@path templates</vh></v>
 <v t="amd.20160308181050.1"><vh>@edit setup.py</vh></v>
 <v t="amd.20160308181031.1" a="E"><vh>@clean wsgi.py</vh>
 <v t="amd.20160308181114.1"><vh>wsgi declarations</vh></v>
@@ -39,6 +38,15 @@
 <v t="amd.20160308210121.1"><vh>fileaxupload</vh></v>
 <v t="amd.20160308205930.1"><vh>fileuploadform</vh></v>
 <v t="amd.20160308215931.1"><vh>download</vh></v>
+</v>
+<v t="amd.20160308180605.1" a="E"><vh>@path templates</vh>
+<v t="amd.20160313095138.1"><vh>@edit docheck.html</vh></v>
+<v t="amd.20160313095147.1"><vh>@edit guessform.html</vh></v>
+<v t="amd.20160313095201.1"><vh>@edit toobig.html</vh></v>
+<v t="amd.20160313095208.1"><vh>@edit toosmall.html</vh></v>
+<v t="amd.20160313095048.1"><vh>@edit index.html</vh></v>
+<v t="amd.20160313095116.1"><vh>@edit option.html</vh></v>
+<v t="amd.20160313095126.1"><vh>@edit optionaction.html</vh></v>
 </v>
 </vnodes>
 <tnodes>
@@ -212,15 +220,66 @@ def docheck():
 </t>
 <t tx="amd.20160308181134.7">@app.route('/option', methods=["GET", "POST"])
 def option():
-    option_list1 = ["1", "2", "3", "4"]
-    option_list2 = ["a", "b"]
+    # 各組選出組長的方式, 若採遞增, 則各組內學號最小者為組長
+    option_list1 = ["遞增", "遞減"]
+    # 各組組長間的排序定組序, 若採遞增, 則學號最小的組長為第1組
+    option_list2 = ["遞增", "遞減"]
+    # 電腦教室共有 9 排電腦
+    column = 9
+    # 根據班級的總人數, 以 9 去除, 算出需要排幾列才能夠容納的下, 而且若列數超過 7
+    # 表示這些學員必須與其他同組學員共用電腦
 
-    return render_template('option.html', option_list1=option_list1, option_list2=option_list2)
+    return render_template('option.html', option_list1=option_list1, option_list2=option_list2, column=column)
 </t>
 <t tx="amd.20160308181134.8">@app.route('/optionaction', methods=['POST'])
 def optionaction():
-    # 這裡將根據使用者所選擇的選項值, 來進行後續的設計運算
-    return request.form["option1"] + ":" + request.form["option2"]
+    # 最後傳回的字串為 out_string
+    out_string = ""
+    # 程式內需要暫時使用的 tmp_string
+    tmp_string = ""
+    # 傳回字串中, 用來說明排序原則的 desc_string
+    desc_string = ""
+    result = []
+    group_sorted = []
+    # 上面為相關變數的初始值設定, 以下開始取出 data 進行處理
+    content = request.form["data"]
+    #result = content.splitlines()
+    for line in content.splitlines():
+        result.append(list(line.split(",")))
+    # i 為行序
+    for i in range(len(result)):
+        # j 為組員序
+        for j in range(len(result[i])):
+            tmp_string += result[i][j] + ", "
+        out_string += "第" + str(i+1) + "排資料:"+ tmp_string + "&lt;br /&gt;"
+        tmp_string = ""
+    for i in range(len(result)):
+        # 開始進入組內排序, 根據 request.form["option1"]  的值決定遞增或遞減
+        if request.form["option1"]  == "遞增":
+            group_list = sorted(list(filter(None, result[i])))
+        else:
+            group_list = sorted(list(filter(None, result[i])), reverse=True)
+        group_sorted.append(group_list)
+    if request.form["option1"]  == "遞增":
+        desc_string += "組內學號最小者為組長."
+    else:
+         desc_string += "組內學號最大者為組長."
+    # 開始進入組間組長學號排序, 根據 request.form["option2"] 的值決定遞增或遞減
+    if request.form["option2"]  == "遞增":
+        desc_string += "各組長中學號最小者為第1組."
+        final_result = sorted(group_sorted)
+    else:
+        desc_string += "各組長中學號最大者為第1組."
+        final_result = sorted(group_sorted, reverse=True)
+    out_string += "&lt;br /&gt;" + desc_string + "&lt;br /&gt;"
+    # i 為行序
+    for i in range(len(final_result)):
+        # j 為組員序
+        for j in range(len(final_result[i])):
+            tmp_string += final_result[i][j] + ","
+        out_string += "第" + str(i+1) + "組:"+ tmp_string + "&lt;br /&gt;"
+        tmp_string = ""
+    return out_string
     # 等運算或資料處理結束後, 再將相關值送到對應的 template 進行資料的展示
     #return render_template('optionaction.html', option_list1=option_list1, option_list2=option_list2)
     
