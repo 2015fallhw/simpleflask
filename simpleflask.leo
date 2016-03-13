@@ -117,6 +117,7 @@ else:
 <t tx="amd.20160308181134.1"># coding: utf-8
 from flask import Flask, send_from_directory, request, redirect, render_template, session, make_response
 import random
+import math
 import os
 # init.py 為自行建立的起始物件
 import init
@@ -226,10 +227,12 @@ def option():
     option_list2 = ["遞增", "遞減"]
     # 電腦教室共有 9 排電腦
     column = 9
+    # 加上班級選擇
+    option_list3 = ["2a", "2b"]
     # 根據班級的總人數, 以 9 去除, 算出需要排幾列才能夠容納的下, 而且若列數超過 7
     # 表示這些學員必須與其他同組學員共用電腦
 
-    return render_template('option.html', option_list1=option_list1, option_list2=option_list2, column=column)
+    return render_template('option.html', option_list1=option_list1, option_list2=option_list2, option_list3=option_list3, column=column)
 </t>
 <t tx="amd.20160308181134.8">@app.route('/optionaction', methods=['POST'])
 def optionaction():
@@ -241,8 +244,16 @@ def optionaction():
     desc_string = ""
     result = []
     group_sorted = []
-    # 上面為相關變數的初始值設定, 以下開始取出 data 進行處理
-    content = request.form["data"]
+    num_of_stud = 0
+    # 每組至多 7 人
+    max_num_in_one_group = 7
+    # 電腦教室配置, 共有 9 排
+    total_column = 9
+    # 上面為相關變數的初始值設定, 以下開始取出 data_a 或 data_b 進行處理, 由 option3 傳回值決定
+    if request.form["option3"]  == "2a":
+        content = request.form["data_a"]
+    else:
+        content = request.form["data_b"]
     #result = content.splitlines()
     for line in content.splitlines():
         result.append(list(line.split(",")))
@@ -276,9 +287,82 @@ def optionaction():
     for i in range(len(final_result)):
         # j 為組員序
         for j in range(len(final_result[i])):
+            num_of_stud += 1
             tmp_string += final_result[i][j] + ","
         out_string += "第" + str(i+1) + "組:"+ tmp_string + "&lt;br /&gt;"
         tmp_string = ""
+    #return "總共有" + str(i+) + "組"
+    # group_num 為總組數
+    group_num = i + 1
+    # 截至這裡, 已經完成選組長, 以及定組序的工作 ,接下來要排座位, 並且印出座位表
+    # 先算每班的總人數
+    #return "總共有"+ str(num_of_stud) + "人"
+    seat_by_column = []
+    for row in range(max_num_in_one_group):
+    # 每組最多 7 人
+    #for row in range(7):
+        # 這裡的 11 為總組數
+        #for column in range(11):
+        for column in range(group_num):
+            # 因為各分組數列的長度並不相同, 但是最長的有 7 位組員, 因此若無法取得的資料 (因為索引超值), 就補上空字串
+            try:
+                seat_by_column.append(final_result[column][row])
+            except:
+                seat_by_column.append("")
+    # seat_by_column 為去除空白字串前的座位數列
+    # 然後利用 filter(None, seat_by_column) 去除空白字串, 就可以得到以 column 為主的座位排序
+    seat_by_column = list(filter(None, seat_by_column))
+    # 然後每 N 個取為 1 排, 即可得到以排為主的座位序列, 而 N 則視全班人數除以 9, 也就是 total_column 進位決定, 因為共有 9 排
+    N = math.ceil(num_of_stud/total_column)
+    # for debug
+    #return str(num_of_stud) + ":" + str(total_column) + ":" + str(N)
+    column_list = [seat_by_column[n:n+N] for n in range(0, len(seat_by_column), N)]
+    # 列出每 N 個組員一排的數列 column_list
+    # 接下來要納入以排為主的座位
+    # 根據 column_list, 建立一個 dictionary, 其中學號為 index, 座位號為對應值
+    seat_dict = {}
+    for column in range(len(column_list)):
+        for i in range(N):
+            try:
+                seat_dict.update({column_list[column][i]: (column, i)})
+            except:
+                seat_dict.update({"": ""})
+                
+    # 開始準備用順序列出學員座號
+    # 根據學號, 排序 dictionary 的方法
+    import operator
+    seat_dict_sort = sorted(seat_dict.items(), key = operator.itemgetter(0), reverse = False)
+    # 依照學號順序, 列出座位表
+    out_string += "&lt;br /&gt;按照學號次序列出座位表:&lt;br /&gt;&lt;br /&gt;"
+    for i in range(1, len(seat_dict_sort)):
+        out_string +=  str(i) + ":"+ str(seat_dict_sort[i]) + "&lt;br /&gt;"
+    # 結束準備用順序列出學員座號
+    # dont know why .reverse() did not work, 只有 [::-1] 可以 reverse list elements
+    #g.es(column_list[::-1])
+
+    # 因為經由 zip 逐一重新 transpose 的列資料, 必須配合最大 (也就是總共有 7 列, 也就是 N 的值) 列數補上空白字串 (也就是空位)
+    # 所以不能使用 zip, 而必須導入 zip_longest 模組方法
+    from itertools import zip_longest
+    final_seat = list(zip_longest(*column_list[::-1], fillvalue=""))
+    # 列出最後的座位表
+    #g.es(final_seat)
+    # 最後轉成 html table 標註格式
+    out_string += "&lt;br /&gt; &lt;br /&gt;"
+    out_string += "&lt;table border='1' width='100%'&gt;"
+    out_string += "&lt;tr&gt;&lt;td colspan='9' style='text-align:center'&gt;講台&lt;/td&gt;&lt;/tr&gt;"
+    for row in range(len(final_seat)):
+        out_string += "&lt;tr&gt;"
+        # 因為每一 row 有 9, 也就是 total_column 個位子
+        for i in range(total_column):
+            try:
+                if i%2 != 0:
+                    out_string += "&lt;td style='text-align:center'  bgcolor='#FFD78C' height='30'&gt;" + str(final_seat[row][i]) + "&lt;/td&gt;"
+                else:
+                    out_string += "&lt;td style='text-align:center' height='30'&gt;" + str(final_seat[row][i]) + "&lt;/td&gt;"
+            except:
+                out_string += "&lt;td&gt;&amp;nbsp;&lt;/td&gt;"
+        out_string += "&lt;/tr&gt;"
+    out_string += "&lt;/table&gt;&lt;br /&gt;&lt;br /&gt;&lt;br /&gt;"
     return out_string
     # 等運算或資料處理結束後, 再將相關值送到對應的 template 進行資料的展示
     #return render_template('optionaction.html', option_list1=option_list1, option_list2=option_list2)
